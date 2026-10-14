@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JARVIS — Dual-Display Autonomous AI Command Center</title>
+  <style>
+    :root {
+      --bg-dark: #070b12;
+      --bg-card: rgba(13, 20, 36, 0.85);
+      --bg-card-hover: rgba(20, 31, 56, 0.95);
+      --border-color: rgba(0, 243, 255, 0.2);
+      --border-glow: rgba(0, 243, 255, 0.4);
+      --cyan: #00f3ff;
+      --cyan-dim: #008b94;
+      --emerald: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --purple: #8b5cf6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #0d1629 0%, var(--bg-dark) 85%);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------------- HEADER BAR ---------------- */
+    header {
+      background: rgba(8, 13, 23, 0.95);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(0, 243, 255, 0.08);
+      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Glowing Orb */
+    .orb-container {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 15px var(--cyan), 0 0 30px var(--cyan);
+      transition: all 0.3s ease;
+    }
+
+    .orb.idle {
+      animation: pulse-cyan 2.5s infinite ease-in-out;
+    }
+
+    .orb.listening {
+      background: var(--red);
+      box-shadow: 0 0 20px var(--red), 0 0 40px var(--red);
+      animation: pulse-red 1s infinite ease-in-out;
+    }
+
+    .orb.executing {
+      background: var(--emerald);
+      box-shadow: 0 0 20px var(--emerald), 0 0 40px var(--emerald);
+      animation: pulse-emerald 0.8s infinite ease-in-out;
+    }
+
+    @keyframes pulse-cyan {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 25px var(--cyan); }
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 30px var(--red); }
+    }
+
+    @keyframes pulse-emerald {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.4); box-shadow: 0 0 30px var(--emerald); }
+    }
+
+    .title-group h1 {
+      font-size: 1.15rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-group h1 span {
+      color: var(--cyan);
+      text-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
+    }
+
+    .model-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      background: rgba(0, 243, 255, 0.12);
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.82rem;
+    }
+
+    .backend-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .backend-selector input {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      width: 170px;
+      outline: none;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--emerald);
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--red);
+    }
+
+    .live-clock {
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      letter-spacing: 1px;
+      font-size: 0.88rem;
+    }
+
+    /* ---------------- THREE COLUMN LAYOUT ---------------- */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      background: rgba(0, 243, 255, 0.04);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-body {
+      padding: 14px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ---------------- LEFT PANEL: SERVICES & PRESETS ---------------- */
+    .service-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    .service-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .dot.online {
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+    }
+
+    .dot.offline {
+      background: var(--red);
+    }
+
+    .section-title {
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 6px;
+      margin-bottom: 2px;
+    }
+
+    .preset-btn {
+      background: rgba(0, 243, 255, 0.05);
+      border: 1px solid rgba(0, 243, 255, 0.2);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      background: rgba(0, 243, 255, 0.15);
+      border-color: var(--cyan);
+      transform: translateX(3px);
+    }
+
+    .preset-btn span.icon {
+      font-size: 1rem;
+    }
+
+    .browser-auth-btn {
+      background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(139, 92, 246, 0.2));
+      border: 1px solid var(--cyan);
+      color: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.3s;
+      margin-top: auto;
+    }
+
+    .browser-auth-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 243, 255, 0.4), rgba(139, 92, 246, 0.4));
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+    }
+
+    /* ---------------- CENTER PANEL: CHAT & VOICE ---------------- */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 10px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: rgba(0, 243, 255, 0.12);
+      border: 1px solid rgba(0, 243, 255, 0.3);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-bottom-left-radius: 2px;
+      width: 95%;
+    }
+
+    .message.assistant h3, .message.assistant h4 {
+      color: var(--cyan);
+      margin: 8px 0 4px 0;
+      font-size: 0.95rem;
+    }
+
+    .message.assistant code {
+      font-family: var(--font-mono);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-size: 0.82rem;
+    }
+
+    .message.assistant pre {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 6px 0;
+    }
+
+    .message.assistant ul {
+      margin-left: 20px;
+      margin-top: 4px;
+    }
+
+    .tools-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--emerald);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+
+    .input-bar-container {
+      padding: 12px;
+      background: rgba(8, 13, 23, 0.9);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .toggle-group input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--cyan);
+    }
+
+    .input-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-form input[type="text"] {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 243, 255, 0.3);
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .input-form input[type="text"]:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.3);
+    }
+
+    .action-btn {
+      background: rgba(0, 243, 255, 0.1);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover {
+      background: var(--cyan);
+      color: #000;
+    }
+
+    .mic-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .mic-btn.active {
+      background: var(--red);
+      border-color: #f87171;
+      box-shadow: 0 0 15px var(--red);
+      animation: pulse-red 1s infinite;
+    }
+
+    /* ---------------- RIGHT PANEL: DISPATCH & TERMINAL ---------------- */
+    .card-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-box h4 {
+      font-size: 0.76rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .compact-input {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      padding: 7px 10px;
+      color: #fff;
+      font-size: 0.78rem;
+      outline: none;
+    }
+
+    .compact-input:focus {
+      border-color: var(--cyan);
+    }
+
+    .terminal-container {
+      background: #03060c;
+      border: 1px solid rgba(0, 243, 255, 0.25);
+      border-radius: 8px;
+      flex: 1;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: var(--font-mono);
+    }
+
+    .terminal-header {
+      background: #090e18;
+      padding: 6px 12px;
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .terminal-logs {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 0.72rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      line-height: 1.4;
+    }
+
+    .log-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    .log-tag {
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      flex-shrink: 0;
+    }
+
+    .log-tag.tool_start { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+    .log-tag.tool_end { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .log-tag.system { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+    .log-tag.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .log-tag.browser { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+
+    .log-msg {
+      color: #e2e8f0;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 243, 255, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 243, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= TOP TELEMETRY HEADER ================= -->
+  <header>
+    <div class="header-left">
+      <div class="orb-container">
+        <div id="statusOrb" class="orb idle" title="Status: Idle"></div>
+      </div>
+      <div class="title-group">
+        <h1>JARVIS <span>HUD</span></h1>
+      </div>
+      <div class="model-badge" id="activeModelBadge">GEMINI 3.8 FLASH</div>
+    </div>
+
+    <div class="header-right">
+      <div class="backend-selector">
+        <span style="color: var(--text-muted);">HOST:</span>
+        <input type="text" id="backendUrlInput" value="http://localhost:8000" placeholder="http://localhost:8000">
+      </div>
+      <div id="connectionStatus" class="status-badge">
+        <span class="dot online"></span> CONNECTED
+      </div>
+      <div id="liveClock" class="live-clock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- ================= 3-COLUMN DASHBOARD GRID ================= -->
+  <div class="dashboard-grid">
+
+    <!-- LEFT PANEL: SERVICE HEALTH & 1-CLICK PRESETS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Subsystems & Workflows</span>
+      </div>
+      <div class="panel-body">
+        
+        <div class="section-title">Connected Services</div>
+        <div class="service-list">
+          <div class="service-item">
+            <div class="service-info"><span id="dotGemini" class="dot"></span> Gemini 3.8 Brain</div>
+            <span id="labelGemini" style="color: var(--text-muted); font-size: 0.7rem;">Active</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span id="dotWorkspace" class="dot"></span> Gmail / Workspace</div>
+            <span id="labelWorkspace" style="color: var(--text-muted); font-size: 0.7rem;">Ready</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span id="dotCalendar" class="dot"></span> Calendar & Tasks</div>
+            <span id="labelCalendar" style="color: var(--text-muted); font-size: 0.7rem;">Synced</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span id="dotWhatsApp" class="dot online"></span> WhatsApp Web (M2)</div>
+            <span style="color: var(--emerald); font-size: 0.7rem;">Persistent</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span id="dotColab" class="dot online"></span> Google Colab (M2)</div>
+            <span style="color: var(--cyan); font-size: 0.7rem;">Headed</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span id="dotKaggle" class="dot"></span> Kaggle Engine</div>
+            <span id="labelKaggle" style="color: var(--text-muted); font-size: 0.7rem;">CLI/API</span>
+          </div>
+          <div class="service-item">
+            <div class="service-info"><span class="dot online"></span> Second Display (M2)</div>
+            <span id="labelDisplay" style="color: var(--cyan); font-size: 0.7rem;">Pinned</span>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top: 10px;">1-Click Autonomous Presets</div>
+        <button class="preset-btn" onclick="sendPreset('Show me today\'s tasks')">
+          <span class="icon">📅</span> Show Today's Tasks
+        </button>
+        <button class="preset-btn" onclick="sendPreset('Tell me about my yesterday\'s mail reply')">
+          <span class="icon">📬</span> Yesterday's Email Replies
+        </button>
+        <button class="preset-btn" onclick="sendPreset('Send a WhatsApp message to Shashank that create Instagram account')">
+          <span class="icon">💬</span> WhatsApp: Message Shashank
+        </button>
+        <button class="preset-btn" onclick="sendPreset('Compose a mail to team@xyz.com about project status update')">
+          <span class="icon">✉️</span> Compose Email Draft
+        </button>
+        <button class="preset-btn" onclick="sendPreset('Search resume in my system and send to xyz.com')">
+          <span class="icon">💻</span> Find File & Upload to Web
+        </button>
+
+        <button class="browser-auth-btn" onclick="openDisplay2Browser()">
+          🌐 Launch/Auth Browser on Display 2
+        </button>
+
+      </div>
+    </div>
+
+    <!-- CENTER PANEL: LIVE CHAT STREAM & VOICE/INPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Autonomous Execution Stream</span>
+        <span id="executingPill" style="display:none; color: var(--emerald); font-size: 0.7rem; font-family: var(--font-mono);">● RUNNING TOOLS</span>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="message assistant">
+          <h3>⚡ JARVIS Dual-Display Agent Ready</h3>
+          <p>Display 2 is locked to this Command Center HUD (Left) and persistent Playwright headed browser (Right). Primary laptop screen is uninterrupted.</p>
+          <p style="margin-top: 6px; color: var(--text-muted);">Use the preset buttons, type in the command bar, or speak via the 🎙️ mic button.</p>
+        </div>
+      </div>
+
+      <div class="input-bar-container">
+        <div class="controls-row">
+          <label class="toggle-group" title="Speaks Jarvis responses aloud">
+            <input type="checkbox" id="ttsToggle" checked>
+            <span>🔊 Voice Readback (Speech Synthesis)</span>
+          </label>
+          <span id="voiceStatusText" style="color: var(--cyan); font-family: var(--font-mono);">Language: en-IN</span>
+        </div>
+
+        <form class="input-form" id="commandForm" onsubmit="handleFormSubmit(event)">
+          <button type="button" id="micBtn" class="mic-btn" onclick="toggleVoiceRecognition()" title="Click to speak (en-IN)">🎙️</button>
+          <input type="text" id="commandInput" placeholder="Ask Jarvis or invoke any multi-step task..." autocomplete="off">
+          <button type="submit" id="sendBtn" class="action-btn">
+            <span>Execute</span> <span>➔</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: DISPATCH CARDS & LIVE TERMINAL LOGS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Telemetry & Quick Dispatch</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- Quick WhatsApp / Email Card -->
+        <div class="card-box">
+          <h4>⚡ Quick Message / Email Dispatch</h4>
+          <input type="text" id="quickRecipient" class="compact-input" placeholder="Contact Name or Email (e.g. Shashank)">
+          <input type="text" id="quickBody" class="compact-input" placeholder="Message content or email body">
+          <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; font-size: 0.74rem;">
+            <label style="display: flex; align-items: center; gap: 4px; color: var(--text-muted);">
+              <input type="checkbox" id="quickSendNow"> Send Immediately
+            </label>
+            <div style="display: flex; gap: 6px;">
+              <button class="action-btn" style="padding: 4px 8px; font-size: 0.72rem;" onclick="dispatchQuick('whatsapp')">WhatsApp</button>
+              <button class="action-btn" style="padding: 4px 8px; font-size: 0.72rem;" onclick="dispatchQuick('email')">Email</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick File Search & Upload Card -->
+        <div class="card-box">
+          <h4>📁 Laptop File Search & Web Upload</h4>
+          <input type="text" id="fileQueryInput" class="compact-input" placeholder="File keyword (e.g. report.pdf, invoice)">
+          <input type="text" id="targetSiteInput" class="compact-input" placeholder="Target site (e.g. dropmefiles.com or xyz.com)">
+          <button class="action-btn" style="padding: 6px 10px; font-size: 0.75rem; justify-content: center;" onclick="dispatchQuickFileUpload()">
+            🔍 Search & Upload on Display 2
+          </button>
+        </div>
+
+        <!-- Live Execution Terminal Log -->
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span>Live Telemetry Log</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span id="logCounter" style="color: var(--cyan); font-size: 0.65rem;">0 events</span>
+              <button onclick="clearTerminal()" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 0.68rem;">Clear</button>
+            </div>
+          </div>
+          <div id="terminalLogs" class="terminal-logs">
+            <div class="log-line">
+              <span class="log-time">SYS</span>
+              <span class="log-tag system">INIT</span>
+              <span class="log-msg">Telemetry polling active (1.5s interval).</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // STATE & CONFIGURATION
+    // -------------------------------------------------------------
+    let lastLogId = 0;
+    let isExecuting = false;
+    let recognition = null;
+    let isListening = false;
+
+    function getBaseUrl() {
+      return document.getElementById("backendUrlInput").value.trim().replace(/\/$/, "");
+    }
+
+    // -------------------------------------------------------------
+    // CLOCK & HEALTH CHECKING
+    // -------------------------------------------------------------
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("liveClock").innerText = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    async function checkHealth() {
+      const base = getBaseUrl();
+      const statusBadge = document.getElementById("connectionStatus");
+      try {
+        const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          const data = await res.json();
+          statusBadge.innerHTML = '<span class="dot online"></span> CONNECTED';
+          statusBadge.classList.remove("error");
+
+          // Update service dots
+          updateDot("dotGemini", "labelGemini", data.gemini.configured, data.gemini.model);
+          updateDot("dotWorkspace", "labelWorkspace", data.workspace_oauth.token_exists, data.workspace_oauth.token_exists ? "Authorized" : "Run OAuth");
+          updateDot("dotCalendar", "labelCalendar", data.workspace_oauth.token_exists, data.workspace_oauth.token_exists ? "Synced" : "No Token");
+          updateDot("dotKaggle", "labelKaggle", data.kaggle.configured, data.kaggle.configured ? "Ready" : "No Creds");
+          
+          if (data.dual_display) {
+            document.getElementById("labelDisplay").innerText = `X=${data.dual_display.second_display_x}`;
+          }
+        } else {
+          throw new Error("Non-200 response");
+        }
+      } catch (e) {
+        statusBadge.innerHTML = '<span class="dot offline"></span> OFFLINE';
+        statusBadge.classList.add("error");
+      }
+    }
+
+    function updateDot(dotId, labelId, isOk, text) {
+      const dot = document.getElementById(dotId);
+      const label = document.getElementById(labelId);
+      if (dot) {
+        dot.className = isOk ? "dot online" : "dot offline";
+      }
+      if (label && text) {
+        label.innerText = text;
+      }
+    }
+
+    setInterval(checkHealth, 5000);
+    checkHealth();
+
+    // -------------------------------------------------------------
+    // TELEMETRY LOG POLLING (GET /logs every 1.5s)
+    // -------------------------------------------------------------
+    async function pollTelemetryLogs() {
+      const base = getBaseUrl();
+      try {
+        const res = await fetch(`${base}/logs?since_id=${lastLogId}&limit=50`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.events && data.events.length > 0) {
+            const terminal = document.getElementById("terminalLogs");
+            data.events.forEach(ev => {
+              lastLogId = Math.max(lastLogId, ev.id);
+              appendLogEntry(ev, terminal);
+            });
+            document.getElementById("logCounter").innerText = `${lastLogId} events`;
+            terminal.scrollTop = terminal.scrollHeight;
+          }
+        }
+      } catch (err) {
+        // Silent poll error
+      }
+    }
+
+    function appendLogEntry(ev, container) {
+      const line = document.createElement("div");
+      line.className = "log-line";
+
+      const timeSpan = document.createElement("span");
+      timeSpan.className = "log-time";
+      timeSpan.innerText = ev.timestamp ? ev.timestamp.slice(0, 8) : "--:--:--";
+
+      const tagSpan = document.createElement("span");
+      tagSpan.className = `log-tag ${ev.type || "system"}`;
+      tagSpan.innerText = (ev.tool_name || ev.type || "LOG").toUpperCase();
+
+      const msgSpan = document.createElement("span");
+      msgSpan.className = "log-msg";
+      
+      let fullText = ev.message || "";
+      if (ev.duration_ms) {
+        fullText += ` (${ev.duration_ms}ms)`;
+      }
+      if (ev.output) {
+        fullText += ` -> ${ev.output}`;
+      }
+      msgSpan.innerText = fullText;
+
+      line.appendChild(timeSpan);
+      line.appendChild(tagSpan);
+      line.appendChild(msgSpan);
+      container.appendChild(line);
+    }
+
+    function clearTerminal() {
+      document.getElementById("terminalLogs").innerHTML = "";
+    }
+
+    setInterval(pollTelemetryLogs, 1500);
+
+    // -------------------------------------------------------------
+    // COMMAND DISPATCH & CHAT INTERACTION
+    // -------------------------------------------------------------
+    async function executeCommand(cmdText) {
+      if (!cmdText || isExecuting) return;
+
+      isExecuting = true;
+      setOrbState("executing");
+      document.getElementById("executingPill").style.display = "inline";
+
+      appendChatMessage("user", cmdText);
+      document.getElementById("commandInput").value = "";
+
+      const base = getBaseUrl();
+      try {
+        const res = await fetch(`${base}/command`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: cmdText, source: "web" })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          appendChatMessage("assistant", data.response, data.tools_executed);
+          speakResponse(data.response);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          appendChatMessage("assistant", `⚠️ Error from Jarvis Server: ${errData.detail || res.statusText}`);
+        }
+      } catch (netErr) {
+        appendChatMessage("assistant", `⚠️ Network Error: Unable to reach Jarvis server at ${base}. Please ensure \`python server.py\` is running.`);
+      } finally {
+        isExecuting = false;
+        setOrbState(isListening ? "listening" : "idle");
+        document.getElementById("executingPill").style.display = "none";
+      }
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById("commandInput");
+      executeCommand(input.value.trim());
+    }
+
+    function sendPreset(cmd) {
+      document.getElementById("commandInput").value = cmd;
+      executeCommand(cmd);
+    }
+
+    function appendChatMessage(role, text, tools = []) {
+      const container = document.getElementById("chatMessages");
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${role}`;
+
+      if (role === "assistant" && tools && tools.length > 0) {
+        const tagsContainer = document.createElement("div");
+        tools.forEach(t => {
+          const tag = document.createElement("span");
+          tag.className = "tools-tag";
+          tag.innerText = `⚙️ ${t.tool} (${t.duration_ms.toFixed(0)}ms)`;
+          tagsContainer.appendChild(tag);
+        });
+        msgDiv.appendChild(tagsContainer);
+      }
+
+      const contentDiv = document.createElement("div");
+      contentDiv.innerHTML = formatMarkdown(text);
+      msgDiv.appendChild(contentDiv);
+
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return "";
+      let formatted = text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/### (.*?)\n/g, "<h3>$1</h3>")
+        .replace(/#### (.*?)\n/g, "<h4>$1</h4>")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/_(.*?)_/g, "<em>$1</em>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: var(--cyan); text-decoration: underline;">$1</a>')
+        .replace(/\n• (.*?)(?=\n|$)/g, "<ul><li>$1</li></ul>")
+        .replace(/\n\n/g, "<br><br>")
+        .replace(/\n/g, "<br>");
+      return formatted;
+    }
+
+    // -------------------------------------------------------------
+    // STATUS ORB STATE CONTROLLER
+    // -------------------------------------------------------------
+    function setOrbState(state) {
+      const orb = document.getElementById("statusOrb");
+      orb.className = `orb ${state}`;
+      if (state === "listening") orb.title = "Status: Listening for voice input";
+      else if (state === "executing") orb.title = "Status: Executing tools";
+      else orb.title = "Status: Idle";
+    }
+
+    // -------------------------------------------------------------
+    // BROWSER SPEECH RECOGNITION (en-IN)
+    // -------------------------------------------------------------
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        document.getElementById("voiceStatusText").innerText = "Speech API unsupported";
+        return;
+      }
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-IN";
+
+      recognition.onstart = () => {
+        isListening = true;
+        document.getElementById("micBtn").classList.add("active");
+        setOrbState("listening");
+        document.getElementById("voiceStatusText").innerText = "Listening (en-IN)...";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("commandInput").value = transcript;
+        document.getElementById("voiceStatusText").innerText = `Heard: "${transcript}"`;
+        executeCommand(transcript);
+      };
+
+      recognition.onerror = (err) => {
+        console.warn("Speech recognition error:", err);
+        document.getElementById("voiceStatusText").innerText = `Voice Error: ${err.error}`;
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        document.getElementById("micBtn").classList.remove("active");
+        if (!isExecuting) setOrbState("idle");
+        document.getElementById("voiceStatusText").innerText = "Language: en-IN";
+      };
+    }
+
+    function toggleVoiceRecognition() {
+      if (!recognition) initSpeechRecognition();
+      if (!recognition) {
+        alert("Native SpeechRecognition is not supported in this browser. Please use Chrome or Edge.");
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // SPEECH SYNTHESIS (VOICE READBACK)
+    // -------------------------------------------------------------
+    function speakResponse(rawText) {
+      const ttsEnabled = document.getElementById("ttsToggle").checked;
+      if (!ttsEnabled || !window.speechSynthesis) return;
+
+      window.speechSynthesis.cancel();
+
+      // Clean markdown tags for natural speech
+      let clean = rawText
+        .replace(/`.*?`/g, "")
+        .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+        .replace(/[#*_~>•]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const sentences = clean.split(/(?<=[.!?])\s+/);
+      const spokenPart = sentences.slice(0, 3).join(" ");
+
+      const utterance = new SpeechSynthesisUtterance(spokenPart);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      utterance.lang = "en-IN";
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // -------------------------------------------------------------
+    // QUICK ACTIONS & LAUNCH BROWSER
+    // -------------------------------------------------------------
+    async function openDisplay2Browser() {
+      const base = getBaseUrl();
+      try {
+        appendChatMessage("assistant", "🌐 Launching persistent Chromium browser on Monitor 2 (Right Half)...");
+        const res = await fetch(`${base}/open-browser`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: "https://web.whatsapp.com" })
+        });
+        const data = await res.json();
+        appendChatMessage("assistant", `✅ Browser launched on Monitor 2 at: ${data.url}`);
+      } catch (err) {
+        appendChatMessage("assistant", `⚠️ Failed to launch browser: ${err}`);
+      }
+    }
+
+    function dispatchQuick(type) {
+      const recipient = document.getElementById("quickRecipient").value.trim();
+      const body = document.getElementById("quickBody").value.trim();
+      const sendNow = document.getElementById("quickSendNow").checked;
+
+      if (!recipient || !body) {
+        alert("Please enter both recipient/contact and message body.");
+        return;
+      }
+
+      let cmd = "";
+      if (type === "whatsapp") {
+        cmd = `Send a WhatsApp message to ${recipient} that ${body}`;
+      } else {
+        cmd = `Compose a mail to ${recipient} about ${body}${sendNow ? ' and send it immediately' : ''}`;
+      }
+      executeCommand(cmd);
+    }
+
+    function dispatchQuickFileUpload() {
+      const query = document.getElementById("fileQueryInput").value.trim();
+      const site = document.getElementById("targetSiteInput").value.trim() || "xyz.com";
+
+      if (!query) {
+        alert("Please specify a filename keyword to search for.");
+        return;
+      }
+
+      const cmd = `Search ${query} in my system and send to ${site}`;
+      executeCommand(cmd);
+    }
+
+    // Initialize speech recognition on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      initSpeechRecognition();
+    });
+  </script>
+</body>
+</html>
