@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 import config
 from agent_core import execute_agent_command, telemetry_buffer
+from jarvis_graph import execute_jarvis_goal, get_graph_mermaid_diagram
 from telegram_bot import start_telegram_bot_thread
 from tools.browser_session import get_or_create_page, close_browser
 
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
     print("=" * 65)
     print("      JARVIS DUAL-DISPLAY ORCHESTRATOR IS ONLINE")
     print(f"      Backend URL: {config.BACKEND_BASE_URL}")
+    print(f"      Engine     : LangGraph Stateful Cyclical Graph + Gemini 3.8 Flash")
     print(f"      HUD Display: Monitor 2 Left (X={config.HUD_WINDOW_X}, Y={config.HUD_WINDOW_Y})")
     print(f"      Automation : Monitor 2 Right (X={config.BROWSER_WINDOW_X}, Y={config.BROWSER_WINDOW_Y})")
     print("=" * 65)
@@ -51,8 +53,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Jarvis Dual-Display Agent",
-    description="Autonomous Second-Display AI Workspace & Desktop Agent powered by Gemini 3.8 Flash",
-    version="2.0.0",
+    description="Autonomous Second-Display AI Workspace & Desktop Agent powered by LangGraph & Gemini 3.8 Flash",
+    version="2.5.0",
     lifespan=lifespan
 )
 
@@ -77,11 +79,14 @@ app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend"
 class CommandRequest(BaseModel):
     command: str
     source: Optional[str] = "web"
+    use_langgraph: Optional[bool] = True
 
 class CommandResponse(BaseModel):
     response: str
     status: str
     tools_executed: List[Dict[str, Any]]
+    plan: Optional[List[str]] = None
+    engine: Optional[str] = "langgraph"
 
 class OpenBrowserRequest(BaseModel):
     url: Optional[str] = "https://web.whatsapp.com"
@@ -103,22 +108,64 @@ async def serve_hud():
 @app.post("/command", response_model=CommandResponse)
 async def run_command(req: CommandRequest):
     """
-    Receives a natural language command from HUD, voice listener, or Telegram,
-    runs the Gemini 3.8 Flash agentic multi-step tool-calling loop,
-    and returns the structured response.
+    Receives a natural language command or goal from HUD, voice listener, or Telegram.
+    Routes to the LangGraph autonomous engine by default or direct tool loop if specified.
     """
     if not req.command.strip():
         raise HTTPException(status_code=400, detail="Command string cannot be empty.")
 
-    # Run blocking agent execution in threadpool
     loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(None, execute_agent_command, req.command)
+
+    if req.use_langgraph:
+        result = await loop.run_in_executor(None, execute_jarvis_goal, req.command)
+    else:
+        result = await loop.run_in_executor(None, execute_agent_command, req.command)
 
     return CommandResponse(
         response=result.get("response", ""),
         status=result.get("status", "success"),
-        tools_executed=result.get("tools_executed", [])
+        tools_executed=result.get("tools_executed", []),
+        plan=result.get("plan"),
+        engine=result.get("engine", "langgraph" if req.use_langgraph else "direct")
     )
+
+
+@app.post("/goal", response_model=CommandResponse)
+async def run_goal(req: CommandRequest):
+    """
+    Dedicated endpoint for complex, long-running multi-step goals.
+    Always executes through the LangGraph planner, executor, and self-correcting verifier.
+    """
+    if not req.command.strip():
+        raise HTTPException(status_code=400, detail="Goal cannot be empty.")
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, execute_jarvis_goal, req.command)
+
+    return CommandResponse(
+        response=result.get("response", ""),
+        status=result.get("status", "success"),
+        tools_executed=result.get("tools_executed", []),
+        plan=result.get("plan", []),
+        engine="langgraph"
+    )
+
+
+@app.get("/graph")
+async def get_graph():
+    """Returns the LangGraph architecture schema and live Mermaid flowchart."""
+    mermaid_code = get_graph_mermaid_diagram()
+    return {
+        "engine": "LangGraph Stateful Cyclical Graph",
+        "mermaid": mermaid_code,
+        "nodes": [
+            {"id": "plan_node", "name": "Supervisor / Planner", "description": "Decomposes goals into structured sub-steps"},
+            {"id": "agent_node", "name": "Reasoner / Tool Dispatcher", "description": "Formulates tool calls via Gemini 3.8 Flash"},
+            {"id": "tool_node", "name": "Tool Execution Engine", "description": "Runs tools, measures latency, logs HUD telemetry"},
+            {"id": "verifier_node", "name": "Critic & Reflection", "description": "Validates outputs and handles self-healing loops"},
+            {"id": "finalize_node", "name": "Executive Finalizer", "description": "Synthesizes final comprehensive briefing"},
+        ]
+    }
 
 
 @app.get("/logs")

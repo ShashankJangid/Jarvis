@@ -10,6 +10,12 @@ An autonomous multi-display personal AI agent powered by **Google Gemini 3.8 Fla
   - **Monitor 1 (Laptop)**: 100% free for your work, coding, and day-to-day tasks.
   - **Monitor 2 (Left Half)**: Dark-mode Sci-Fi Command Center HUD dashboard (`jarvis_command_center.html`).
   - **Monitor 2 (Right Half)**: Persistent headed Playwright Chromium window pinned for WhatsApp Web, Google Colab, Kaggle, and web form automations.
+- **⚡ LangGraph Autonomous Goal Engine (`jarvis_graph.py`)**:
+  - **Supervisor / Planner Node**: Decomposes high-level objectives into structured sub-steps.
+  - **Reasoner / Tool Node**: Gemini 3.8 Flash assesses step progress and invokes tools.
+  - **Critic & Reflection Node**: Audits tool outputs, catches missing files/auth, and performs self-healing retries.
+  - **Executive Finalizer Node**: Synthesizes end-to-end outcome reports.
+  - **State Checkpointing**: In-memory `MemorySaver` preserves multi-turn session state.
 - **LLM Brain**: Official Google GenAI SDK (`google-genai`) with Gemini 3.8 Flash multi-step tool-calling loop and granular telemetry buffer.
 - **3 Simultaneous Interfaces**:
   1. **Second-Screen Web HUD**: Native browser speech recognition (`en-IN`), 1-click preset workflows, voice readback synthesis, and live execution telemetry terminal.
@@ -20,6 +26,23 @@ An autonomous multi-display personal AI agent powered by **Google Gemini 3.8 Fla
   - **WhatsApp Web**: Persistent session messaging and chat history extraction on Monitor 2.
   - **Google Colab & Kaggle**: Automated Colab notebook execution (`Ctrl+F9`) and Kaggle dataset/competition management.
   - **System File Search & Web Upload**: Recursive local laptop file search and automated website file upload.
+
+---
+
+## ⚡ Operating Jarvis in Goal Mode (`/goal`)
+
+Jarvis can execute long-running, multi-step autonomous workflows using the `/goal` command:
+
+```text
+/goal Search sales invoice on laptop, upload it to xyz.com, and send a WhatsApp message to Shashank that invoice is uploaded.
+```
+
+When `/goal` is used, the **LangGraph Planner** automatically:
+1. Decomposes the goal into sequential sub-steps.
+2. Displays the execution plan visually in the HUD.
+3. Coordinates Playwright automation on **Monitor 2 (Right Half)**.
+4. Reflects on outcomes and self-heals errors.
+5. Emits a final executive briefing to the user.
 
 ---
 

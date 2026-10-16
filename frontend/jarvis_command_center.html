@@ -134,6 +134,88 @@
       letter-spacing: 1px;
     }
 
+    .engine-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.5);
+      color: #c084fc;
+      padding: 3px 10px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .engine-badge:hover {
+      background: rgba(168, 85, 247, 0.3);
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+
+    .plan-card {
+      background: rgba(168, 85, 247, 0.08);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+    }
+
+    .plan-header {
+      color: #c084fc;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .plan-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
+      color: #e2e8f0;
+    }
+
+    .plan-step.done {
+      color: var(--emerald);
+    }
+
+    /* Modal for LangGraph architecture */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(3, 6, 12, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--cyan);
+      border-radius: 12px;
+      width: 800px;
+      max-width: 90vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 0 40px rgba(0, 243, 255, 0.25);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
     .header-right {
       display: flex;
       align-items: center;
@@ -620,6 +702,7 @@
         <h1>JARVIS <span>HUD</span></h1>
       </div>
       <div class="model-badge" id="activeModelBadge">GEMINI 3.8 FLASH</div>
+      <div class="engine-badge" id="engineBadge" onclick="openGraphModal()" title="Click to view LangGraph Pipeline">⚡ LANGGRAPH GOAL ENGINE</div>
     </div>
 
     <div class="header-right">
@@ -693,6 +776,21 @@
           <span class="icon">💻</span> Find File & Upload to Web
         </button>
 
+        <div class="section-title" style="margin-top: 10px;">🎯 Long-Running Goals (/goal)</div>
+        <button class="preset-btn" style="border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.08);" onclick="sendPreset('/goal Search invoice on laptop, upload to xyz.com, and send WhatsApp to Shashank that invoice is uploaded')">
+          <span class="icon">🎯</span> Goal: Find, Upload & Message
+        </button>
+        <button class="preset-btn" style="border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.08);" onclick="sendPreset('/goal Check yesterday\'s email replies, summarize findings, and create a draft to team@xyz.com')">
+          <span class="icon">🎯</span> Goal: Email Sync & Draft Report
+        </button>
+        <button class="preset-btn" style="border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.08);" onclick="sendPreset('/goal Open Google Colab on Monitor 2, execute all cells, and check Kaggle datasets')">
+          <span class="icon">🎯</span> Goal: Colab Run & Kaggle Sync
+        </button>
+
+        <button class="preset-btn" style="margin-top: 6px; border-color: rgba(0, 243, 255, 0.4);" onclick="openGraphModal()">
+          <span class="icon">📊</span> View LangGraph Pipeline
+        </button>
+
         <button class="browser-auth-btn" onclick="openDisplay2Browser()">
           🌐 Launch/Auth Browser on Display 2
         </button>
@@ -717,10 +815,16 @@
 
       <div class="input-bar-container">
         <div class="controls-row">
-          <label class="toggle-group" title="Speaks Jarvis responses aloud">
-            <input type="checkbox" id="ttsToggle" checked>
-            <span>🔊 Voice Readback (Speech Synthesis)</span>
-          </label>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <label class="toggle-group" title="Speaks Jarvis responses aloud">
+              <input type="checkbox" id="ttsToggle" checked>
+              <span>🔊 Voice Readback</span>
+            </label>
+            <label class="toggle-group" title="Execute via LangGraph stateful multi-step goal engine">
+              <input type="checkbox" id="langGraphToggle" checked>
+              <span style="color: #c084fc;">⚡ LangGraph (/goal)</span>
+            </label>
+          </div>
           <span id="voiceStatusText" style="color: var(--cyan); font-family: var(--font-mono);">Language: en-IN</span>
         </div>
 
@@ -916,7 +1020,7 @@
     setInterval(pollTelemetryLogs, 1500);
 
     // -------------------------------------------------------------
-    // COMMAND DISPATCH & CHAT INTERACTION
+    // COMMAND DISPATCH & CHAT INTERACTION (LangGraph & Direct)
     // -------------------------------------------------------------
     async function executeCommand(cmdText) {
       if (!cmdText || isExecuting) return;
@@ -929,16 +1033,26 @@
       document.getElementById("commandInput").value = "";
 
       const base = getBaseUrl();
+      const isGoalCmd = cmdText.trim().toLowerCase().startsWith("/goal");
+      const useLangGraph = document.getElementById("langGraphToggle") ? document.getElementById("langGraphToggle").checked : true;
+      
+      const endpoint = isGoalCmd ? `${base}/goal` : `${base}/command`;
+      const cleanCmd = isGoalCmd ? cmdText.trim().replace(/^\/goal\s*/i, "") : cmdText;
+
       try {
-        const res = await fetch(`${base}/command`, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: cmdText, source: "web" })
+          body: JSON.stringify({
+            command: cleanCmd,
+            source: "web",
+            use_langgraph: useLangGraph || isGoalCmd
+          })
         });
 
         if (res.ok) {
           const data = await res.json();
-          appendChatMessage("assistant", data.response, data.tools_executed);
+          appendChatMessage("assistant", data.response, data.tools_executed, data.plan, data.engine);
           speakResponse(data.response);
         } else {
           const errData = await res.json().catch(() => ({}));
@@ -964,20 +1078,52 @@
       executeCommand(cmd);
     }
 
-    function appendChatMessage(role, text, tools = []) {
+    function appendChatMessage(role, text, tools = [], plan = null, engine = null) {
       const container = document.getElementById("chatMessages");
       const msgDiv = document.createElement("div");
       msgDiv.className = `message ${role}`;
 
-      if (role === "assistant" && tools && tools.length > 0) {
-        const tagsContainer = document.createElement("div");
-        tools.forEach(t => {
-          const tag = document.createElement("span");
-          tag.className = "tools-tag";
-          tag.innerText = `⚙️ ${t.tool} (${t.duration_ms.toFixed(0)}ms)`;
-          tagsContainer.appendChild(tag);
-        });
-        msgDiv.appendChild(tagsContainer);
+      if (role === "assistant") {
+        const headerDiv = document.createElement("div");
+        headerDiv.style.display = "flex";
+        headerDiv.style.alignItems = "center";
+        headerDiv.style.gap = "8px";
+        headerDiv.style.flexWrap = "wrap";
+        headerDiv.style.marginBottom = "6px";
+
+        if (engine === "langgraph") {
+          const engineTag = document.createElement("span");
+          engineTag.className = "tools-tag";
+          engineTag.style.background = "rgba(168, 85, 247, 0.2)";
+          engineTag.style.color = "#c084fc";
+          engineTag.style.borderColor = "rgba(168, 85, 247, 0.5)";
+          engineTag.innerText = "⚡ LangGraph Pipeline";
+          headerDiv.appendChild(engineTag);
+        }
+
+        if (tools && tools.length > 0) {
+          tools.forEach(t => {
+            const tag = document.createElement("span");
+            tag.className = "tools-tag";
+            tag.innerText = `⚙️ ${t.tool} (${t.duration_ms.toFixed(0)}ms)`;
+            headerDiv.appendChild(tag);
+          });
+        }
+
+        if (headerDiv.children.length > 0) {
+          msgDiv.appendChild(headerDiv);
+        }
+
+        if (plan && plan.length > 0) {
+          const planBox = document.createElement("div");
+          planBox.className = "plan-card";
+          let planHtml = `<div class="plan-header"><span>📋 LangGraph Execution Plan (${plan.length} steps)</span></div>`;
+          plan.forEach((step, idx) => {
+            planHtml += `<div class="plan-step done"><span>✔ Step ${idx + 1}:</span> ${step}</div>`;
+          });
+          planBox.innerHTML = planHtml;
+          msgDiv.appendChild(planBox);
+        }
       }
 
       const contentDiv = document.createElement("div");
@@ -1148,10 +1294,85 @@
       executeCommand(cmd);
     }
 
+    // -------------------------------------------------------------
+    // LANGGRAPH ARCHITECTURE MODAL
+    // -------------------------------------------------------------
+    async function openGraphModal() {
+      const modal = document.getElementById("graphModal");
+      modal.style.display = "flex";
+      const base = getBaseUrl();
+      const container = document.getElementById("mermaidGraphContainer");
+      try {
+        const res = await fetch(`${base}/graph`);
+        if (res.ok) {
+          const data = await res.json();
+          container.innerText = data.mermaid || "StateGraph definition loaded.";
+        } else {
+          container.innerText = "graph TD\n  START --> plan_node\n  plan_node --> agent_node\n  agent_node --> tool_node\n  tool_node --> verifier_node\n  verifier_node --> agent_node\n  verifier_node --> finalize_node\n  finalize_node --> END";
+        }
+      } catch (e) {
+        container.innerText = "Error loading live graph: " + e;
+      }
+    }
+
+    function closeGraphModal(e) {
+      if (!e || e.target.id === "graphModal" || e.type === "click") {
+        document.getElementById("graphModal").style.display = "none";
+      }
+    }
+
     // Initialize speech recognition on page load
     window.addEventListener("DOMContentLoaded", () => {
       initSpeechRecognition();
     });
   </script>
+
+  <!-- Modal for LangGraph Pipeline Diagram -->
+  <div id="graphModal" class="modal-overlay" onclick="closeGraphModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <h3 style="color: #c084fc; font-family: var(--font-mono); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+          <span>⚡</span> JARVIS LangGraph Autonomous Goal Architecture
+        </h3>
+        <button onclick="closeGraphModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer;">&times;</button>
+      </div>
+
+      <p style="font-size: 0.84rem; color: var(--text-muted); line-height: 1.5;">
+        Jarvis executes complex workflows as a stateful, cyclical directed graph with automatic self-reflection, parameter adjustment, and verification:
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 8px 0;">
+        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 10px;">
+          <strong style="color: #c084fc;">1. Planner Node</strong>
+          <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 4px;">Decomposes user objectives into sequential sub-steps.</p>
+        </div>
+        <div style="background: rgba(0, 243, 255, 0.1); border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 8px; padding: 10px;">
+          <strong style="color: var(--cyan);">2. Reasoner Node</strong>
+          <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 4px;">Gemini 3.8 Flash assesses plan progress and selects tools.</p>
+        </div>
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px;">
+          <strong style="color: var(--emerald);">3. Tool Execution</strong>
+          <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 4px;">Executes headed browser & OS tools on Monitor 2.</p>
+        </div>
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px;">
+          <strong style="color: var(--amber);">4. Verifier / Critic</strong>
+          <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 4px;">Audits outputs. Self-heals errors or advances the plan.</p>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px;">
+          <strong style="color: #38bdf8;">5. Executive Finalizer</strong>
+          <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 4px;">Synthesizes clean executive briefing for user.</p>
+        </div>
+      </div>
+
+      <div style="background: #03060c; border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 8px; padding: 12px; font-family: var(--font-mono); font-size: 0.75rem; overflow-x: auto;">
+        <div style="color: var(--cyan); margin-bottom: 6px;">// Live Mermaid StateGraph Representation:</div>
+        <pre id="mermaidGraphContainer" style="color: #e2e8f0; margin: 0; white-space: pre-wrap;">Loading graph definition...</pre>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="action-btn" onclick="closeGraphModal()">Close</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

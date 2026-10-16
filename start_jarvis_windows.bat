@@ -29,8 +29,13 @@ echo [*] HUD Dimensions: %HUD_WIDTH% x %HUD_HEIGHT%
 echo.
 
 :: 1. Start the Jarvis FastAPI Server in a separate window
+set PYTHON_CMD=python
+if exist ".venv\Scripts\python.exe" (
+    set PYTHON_CMD=.venv\Scripts\python.exe
+    echo [*] Using dedicated virtual environment at .venv
+)
 echo [*] Starting Jarvis Orchestrator Server on http://localhost:8000 ...
-start "Jarvis Orchestrator Server" python server.py
+start "Jarvis Orchestrator Server" %PYTHON_CMD% server.py
 
 :: Wait 3 seconds for uvicorn to initialize
 echo [*] Waiting for server initialization...

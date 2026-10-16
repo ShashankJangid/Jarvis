@@ -36,7 +36,12 @@ echo ""
 
 # 1. Start the FastAPI orchestrator server in the background
 echo "[*] Launching Jarvis Orchestrator Server on http://localhost:8000 ..."
-python3 server.py &
+PYTHON_BIN="python3"
+if [ -f ".venv/bin/python3" ]; then
+    PYTHON_BIN=".venv/bin/python3"
+    echo "[*] Using dedicated virtual environment at .venv"
+fi
+$PYTHON_BIN server.py &
 SERVER_PID=$!
 
 # Register cleanup on script termination
